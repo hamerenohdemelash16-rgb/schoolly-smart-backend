@@ -50,11 +50,8 @@ def get_at_risk_students(threshold_pct=75.0):
 
 if __name__ == "__main__":
     print("--- Running At-Risk Attendance Analytics Engine ---")
-    
-    # Query for any students with less than 75% attendance rate
     threshold = 75.0
     at_risk = get_at_risk_students(threshold_pct=threshold)
-    
     print(f"\n[ALERT] Found {len(at_risk)} student(s) below {threshold}% attendance threshold:\n")
     for student in at_risk:
         print(f" • ID {student['student_id']}: {student['name']} ({student['email']})")

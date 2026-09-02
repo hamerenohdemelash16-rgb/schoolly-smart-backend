@@ -2,6 +2,82 @@ import psycopg2
 from psycopg2.extras import execute_values
 from db_manager import get_connection
 
+
+def record_daily_attendance(student_id, attendance_date, status):
+    """Record one student's attendance status for a calendar date."""
+    conn = get_connection()
+    try:
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO attendance (student_id, date, status)
+                    VALUES (%s, %s, %s)
+                    RETURNING id, date, status;
+                    """,
+                    (student_id, attendance_date, status),
+                )
+                row = cursor.fetchone()
+                return {
+                    "attendance_id": row[0],
+                    "date": row[1],
+                    "status": row[2],
+                }
+    finally:
+        conn.close()
+
+
+def get_student_attendance(student_id):
+    """Return an individual student's attendance records in date order."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id, date, status
+                FROM attendance
+                WHERE student_id = %s
+                ORDER BY date ASC;
+                """,
+                (student_id,),
+            )
+            return [
+                {
+                    "attendance_id": row[0],
+                    "date": row[1],
+                    "status": row[2],
+                }
+                for row in cursor.fetchall()
+            ]
+    finally:
+        conn.close()
+
+
+def calculate_attendance_percentage(student_id):
+    """Calculate the percentage of recorded days marked as Present."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT COUNT(*), COUNT(*) FILTER (WHERE status = 'Present')
+                FROM attendance
+                WHERE student_id = %s;
+                """,
+                (student_id,),
+            )
+            total_days, present_days = cursor.fetchone()
+            percentage = (present_days / total_days * 100) if total_days else 0.0
+            return {
+                "student_id": student_id,
+                "total_days": total_days,
+                "present_days": present_days,
+                "attendance_percentage": round(percentage, 2),
+            }
+    finally:
+        conn.close()
+
+
 def bulk_log_attendance(attendance_records):
     """
     Logs attendance for multiple students efficiently in a single batch.
